@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>视频英文精讲助手</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 13px;
+      color: #1f1f1f;
+      padding: 14px;
+    }
+    h2 { font-size: 15px; margin-bottom: 12px; }
+    h3 { font-size: 13px; margin: 14px 0 8px; color: #444; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+    .field input, .field select {
+      width: 100%;
+      padding: 7px 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .field input:focus, .field select:focus { outline: none; border-color: #1a73e8; }
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      background: #1a73e8;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      width: 100%;
+    }
+    button:hover { background: #1765cc; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: #f1f3f4; color: #333; }
+    button.secondary:hover { background: #e4e6e7; }
+    .hint { font-size: 11px; color: #999; margin-top: 4px; line-height: 1.5; }
+    .msg { font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .msg.ok { color: #188038; }
+    .msg.err { color: #c5221f; }
+    hr { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+  </style>
+</head>
+<body>
+  <h2>视频英文精讲助手</h2>
+  <button id="btnOpenSettings" class="secondary">⚙ 打开独立设置页 · 模型与分级 Prompt</button>
+
+  <h3>LLM API 配置</h3>
+  <div class="field">
+    <label for="provider">模型服务</label>
+    <select id="provider">
+      <option value="deepseek">DeepSeek</option>
+      <option value="openai">OpenAI</option>
+      <option value="codex">OpenAI / Codex 模型</option>
+      <option value="gemini">Google Gemini</option>
+      <option value="claude">Anthropic Claude</option>
+      <option value="qwen">Qwen / 通义千问</option>
+      <option value="kimi">Kimi / Moonshot</option>
+      <option value="glm">GLM / 智谱</option>
+      <option value="doubao">Doubao / 豆包（火山方舟）</option>
+      <option value="mistral">Mistral AI</option>
+      <option value="groq">Groq</option>
+      <option value="xai">xAI / Grok</option>
+      <option value="openrouter">OpenRouter</option>
+      <option value="siliconflow">SiliconFlow / 硅基流动</option>
+      <option value="custom">自定义兼容服务</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>API Base URL（OpenAI 兼容）</label>
+    <input id="apiBaseUrl" placeholder="https://api.deepseek.com/v1" />
+  </div>
+  <div class="field">
+    <label for="apiFormat">接口类型</label>
+    <select id="apiFormat">
+      <option value="chat">Chat Completions</option>
+      <option value="responses">Responses（OpenAI / Codex）</option>
+      <option value="anthropic">Anthropic Messages</option>
+      <option value="gemini">Gemini generateContent</option>
+    </select>
+    <div class="hint" id="providerHint"></div>
+  </div>
+  <div class="field">
+    <label>API Key</label>
+    <input id="apiKey" type="password" placeholder="sk-..." />
+  </div>
+  <div class="field" id="workspaceField" hidden><label for="workspaceId">Claude Workspace ID（可选）</label><input id="workspaceId" placeholder="wrkspc_…" /></div>
+  <div class="field">
+    <label>模型</label>
+    <input id="model" placeholder="deepseek-chat" />
+  </div>
+  <button id="btnSave">保存设置</button>
+  <label class="hint" style="display:flex;gap:6px;margin:8px 0;align-items:center;color:#666">
+    <input id="jsonMode" type="checkbox" checked />启用 JSON 模式（服务不支持时取消）
+  </label>
+  <div class="msg" id="saveMsg"></div>
+
+  <hr />
+
+  <h3>导入字幕（SRT / VTT）</h3>
+  <div class="field">
+    <input id="srtFile" type="file" accept=".srt,.vtt,.txt" />
+    <div class="hint">将应用到当前标签页正在播放的视频（按页面地址匹配）。适用于无字幕视频或需要替换字幕的场景。</div>
+  </div>
+  <button id="btnImport" class="secondary" disabled>导入到当前页面</button>
+  <div class="msg" id="importMsg"></div>
+
+  <hr />
+
+  <h3>说明</h3>
+  <div class="hint">
+    1. 打开 YouTube 视频页，右侧自动出现精讲面板并加载英文字幕。<br />
+    2. 保存 API 配置后，按所选英文水平自动精讲，每批 5 句；播放到本批第 3 句时预加载下一批。包含台词释义、生词、短语、语法、文化背景及注意事项，仅展开定位句的详情。生成失败可点击下方重试。<br />
+    3. 通用网页（含 &lt;video&gt; 标签）也支持，需导入 SRT 字幕。
+  </div>
+
+  <script src="../utils/locales.js"></script>
+  <script src="../utils/i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

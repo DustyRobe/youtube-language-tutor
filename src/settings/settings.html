@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI 与讲解设置 · 视频英文精讲助手</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <header><div class="eyebrow">视频英文精讲助手 / 设置</div><h1>让讲解适合你的学习方式</h1><p>配置模型服务，再为每个英文水平定制教学重点。保存后会同步到已打开的视频面板。</p></header>
+  <main>
+    <section class="card languages" aria-labelledby="languageTitle">
+      <h2 id="languageTitle">语言设置</h2>
+      <p class="hint">目标语言用于翻译和讲解；界面语言仅控制按钮、标签和提示。英文原台词保持不变。</p>
+      <div class="language-fields">
+        <div class="field"><label for="targetLanguage">讲解目标语言</label><select id="targetLanguage"><option value="zh-CN">简体中文</option><option value="en">English</option><option value="fr">Français</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="ru">Русский</option><option value="es">Español</option><option value="de">Deutsch</option><option value="pt">Português</option><option value="ar">العربية</option></select></div>
+        <div class="field"><label for="uiLanguage">界面语言</label><select id="uiLanguage"><option value="zh-CN">简体中文</option><option value="en">English</option><option value="fr">Français</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="ru">Русский</option><option value="es">Español</option><option value="de">Deutsch</option><option value="pt">Português</option><option value="ar">العربية</option></select></div>
+        <button id="saveLanguages" class="primary">保存语言设置</button>
+      </div>
+      <div id="languageMsg" class="msg" role="status" aria-live="polite"></div>
+    </section>
+    <section class="card" aria-labelledby="modelTitle">
+      <h2 id="modelTitle">模型服务</h2><p class="hint">各服务分别保存配置；切换服务后点击保存才会生效。</p>
+      <div class="field"><label for="provider">服务提供方</label><select id="provider">
+        <option value="deepseek">DeepSeek</option><option value="openai">OpenAI</option><option value="codex">OpenAI / Codex 模型</option>
+        <option value="gemini">Google Gemini</option><option value="claude">Anthropic Claude</option><option value="qwen">Qwen / 通义千问</option>
+        <option value="kimi">Kimi / Moonshot</option><option value="glm">GLM / 智谱</option><option value="doubao">Doubao / 豆包（火山方舟）</option>
+        <option value="mistral">Mistral AI</option><option value="groq">Groq</option><option value="xai">xAI / Grok</option><option value="openrouter">OpenRouter</option><option value="siliconflow">SiliconFlow / 硅基流动</option>
+        <option value="custom">自定义兼容服务</option>
+      </select></div>
+      <div class="field"><label for="apiBaseUrl">API 地址</label><input id="apiBaseUrl" type="url" spellcheck="false" placeholder="https://api.openai.com/v1" /></div>
+      <div class="field"><label for="apiFormat">接口类型</label><select id="apiFormat"><option value="chat">Chat Completions</option><option value="responses">Responses</option><option value="anthropic">Anthropic Messages</option><option value="gemini">Gemini generateContent</option></select><p class="hint" id="providerHint"></p></div>
+      <div class="field" id="workspaceField" hidden><label for="workspaceId">Claude Workspace ID（可选）</label><input id="workspaceId" spellcheck="false" placeholder="wrkspc_…" /></div>
+      <div class="field"><label for="apiKey">API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="填写 API Key" /></div>
+      <div class="field"><label for="model">模型 ID</label><input id="model" spellcheck="false" placeholder="gpt-6-lula" /></div>
+      <label class="check"><input id="jsonMode" type="checkbox" checked />启用 JSON 模式</label><p class="hint">服务不支持 JSON 模式时可取消，插件仍会要求模型返回结构化讲解。</p>
+      <button id="btnSave" class="primary">保存模型配置</button><div id="saveMsg" class="msg" role="status" aria-live="polite"></div>
+    </section>
+    <section class="card prompts" aria-labelledby="promptTitle">
+      <div class="section-heading"><h2 id="promptTitle">分级讲解 Prompt</h2><span class="badge" id="promptBadge">默认策略</span></div>
+      <p class="hint">A1–C2 各有一份独立提示词。可修改讲解语言、教学重点、例句风格和希望跳过的知识。字幕内容、JSON 输出结构与水平筛选规则由插件自动补充，不需要在这里编写。</p>
+      <div id="levelTabs" class="level-tabs" role="group" aria-label="选择要编辑的英文水平"></div>
+      <label id="promptLabel" for="levelPrompt">B1 中级 · 教学提示词</label>
+      <textarea id="levelPrompt" rows="13" maxlength="16000" spellcheck="false" placeholder="描述你希望这个水平的用户如何学习……"></textarea>
+      <div class="editor-meta"><span id="promptCount">0 字符</span><span>切换水平会保留未保存的编辑</span></div>
+      <div class="actions"><button id="savePrompts" class="primary">保存所有提示词修改</button><button id="resetPrompt" class="secondary">恢复当前水平默认</button></div>
+      <div id="promptMsg" class="msg" role="status" aria-live="polite"></div>
+      <div class="note">修改并保存某个水平的 Prompt 后，视频面板会按新提示词自动重新生成该水平的讲解，每批仍为 5 句。其他水平的提示词不会被改变。</div>
+    </section>
+  </main>
+  <script src="../utils/locales.js"></script>
+  <script src="../utils/i18n.js"></script>
+  <script src="../popup/popup.js"></script>
+  <script type="module" src="settings.js"></script>
+</body>
+</html>

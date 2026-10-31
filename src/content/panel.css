@@ -1,0 +1,417 @@
+/* 视频英文精讲助手 —— 右侧面板样式 */
+
+.vl-root {
+  box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100dvh;
+  width: var(--vl-panel-width, 460px);
+  min-width: 0;
+  isolation: isolate;
+  background: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  z-index: 2147483000;
+  display: none;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  color: #1f1f1f;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.08);
+}
+
+.vl-root.vl-open {
+  display: flex;
+}
+
+.vl-resize-handle {
+  position: absolute;
+  inset: 0 auto 0 -4px;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.vl-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 45%; left: 3px;
+  width: 3px; height: 52px;
+  border-radius: 4px;
+  background: #b5c5dc;
+}
+.vl-resize-handle:hover::after,
+.vl-resize-handle:focus-visible::after,
+.vl-resizing .vl-resize-handle::after { background: #1a73e8; }
+.vl-resize-handle:focus-visible { outline: 2px solid #1a73e8; outline-offset: -2px; }
+html.vl-resizing, html.vl-resizing * { cursor: col-resize !important; user-select: none !important; }
+html.vl-resizing iframe { pointer-events: none !important; }
+
+.vl-root * {
+  box-sizing: border-box;
+}
+
+/* ---- 顶部栏 ---- */
+.vl-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.vl-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.vl-topbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.vl-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: #666;
+}
+
+.vl-icon-btn:hover {
+  background: #f0f0f0;
+}
+
+/* ---- 控制面板 ---- */
+.vl-controls {
+  padding: 7px 12px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.vl-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.vl-controls-row:last-child {
+  margin-bottom: 0;
+}
+
+.vl-btn {
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.vl-btn:hover {
+  background: #f5f5f5;
+}
+
+.vl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vl-btn-primary {
+  background: #1a73e8;
+  color: #fff;
+  border-color: #1a73e8;
+}
+
+.vl-btn-primary:hover {
+  background: #1765cc;
+}
+
+.vl-root .vl-play-btn {
+  width: 60px;
+  height: 48px;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 13px;
+  font-size: 25px;
+  line-height: 1;
+  background: #1a73e8;
+  color: #fff;
+  border-color: #1a73e8;
+}
+.vl-root .vl-play-btn:hover { background: #1765cc; }
+.vl-transport > .vl-btn:not(.vl-play-btn) { padding: 6px 9px; height: 34px; }
+.vl-level { margin-left: auto; min-width: 0; max-width: 140px; }
+
+.vl-speed {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.vl-checks {
+  justify-content: flex-start;
+  column-gap: 12px;
+}
+
+.vl-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ---- 状态条 ---- */
+.vl-status {
+  padding: 5px 14px;
+  font-size: 11px;
+  color: #666;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+  min-height: 26px;
+}
+
+.vl-status-error {
+  color: #c5221f;
+  background: #fdeceb;
+}
+
+/* ---- 台词列表 ---- */
+.vl-cue-list {
+  flex: 1;
+  min-height: 0;
+  overscroll-behavior: contain;
+  scroll-padding-top: 12px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.vl-empty {
+  padding: 30px 20px;
+  text-align: center;
+  color: #999;
+}
+
+.vl-cue-item {
+  padding: 12px 14px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.15s;
+}
+
+.vl-cue-item:hover {
+  background: #f7f7f7;
+}
+
+.vl-cue-item.vl-current {
+  background: #eff5ff;
+  border-left-color: #1a73e8;
+}
+
+.vl-current > div > .vl-cue-head {
+  display: block;
+  padding: 6px 0 12px;
+}
+.vl-current .vl-cue-time { display: block; margin-bottom: 5px; color: #52729b; font-weight: 600; }
+.vl-current .vl-cue-text { font-size: 23px; line-height: 1.55; font-weight: 650; color: #102c50; }
+
+.vl-cue-item.vl-has-lesson .vl-cue-head .vl-cue-text::after {
+  content: ' ✎';
+  color: #1a73e8;
+  font-size: 11px;
+}
+
+.vl-cue-head {
+  direction: ltr;
+  text-align: left;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.vl-cue-time {
+  font-size: 11px;
+  color: #999;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.vl-cue-text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  overflow-wrap: anywhere;
+}
+
+/* ---- 讲解块 ---- */
+.vl-lesson {
+  cursor: text;
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+  padding: 12px;
+  background: #fafbfc;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.vl-lesson-empty {
+  color: #aaa;
+  font-size: 12px;
+}
+
+.vl-lesson-sec {
+  margin-bottom: 10px;
+}
+
+.vl-lesson-sec:last-child {
+  margin-bottom: 0;
+}
+
+.vl-lesson-sec-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a73e8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.vl-word {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.vl-word-term {
+  font-weight: 600;
+  color: #b45309;
+}
+
+.vl-word-ph {
+  color: #999;
+  font-size: 12px;
+}
+
+.vl-word-meaning {
+  color: #555;
+  margin-left: 6px;
+}
+
+.vl-word-example {
+  color: #888;
+  font-size: 12px;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.vl-lesson-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+/* ---- 生成按钮区 ---- */
+.vl-genbar {
+  padding: 7px 12px;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.vl-btn-generate {
+  width: 100%;
+  padding: 8px;
+  font-size: 13px;
+}
+
+/* ---- 悬浮球 ---- */
+#vl-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 80px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2147483000;
+  box-shadow: 0 2px 10px rgba(26, 115, 232, 0.4);
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.vl-root:not(.vl-open) ~ #vl-fab,
+#vl-fab.vl-fab-visible {
+  display: flex;
+}
+
+/* 深色页面兼容（YouTube 深色模式不覆盖面板：面板固定浅色，保证阅读体验） */
+@media (prefers-color-scheme: dark) {
+  .vl-root {
+    background: #202124;
+    color: #e8eaed;
+    border-left-color: #3c4043;
+  }
+
+  .vl-topbar, .vl-controls, .vl-genbar {
+    border-color: #3c4043;
+  }
+
+  .vl-btn, .vl-speed {
+    background: #292a2d;
+    color: #e8eaed;
+    border-color: #3c4043;
+  }
+
+  .vl-status {
+    background: #171717;
+    color: #9aa0a6;
+    border-color: #3c4043;
+  }
+
+  .vl-cue-item:hover {
+    background: #292a2d;
+  }
+
+  .vl-cue-item.vl-current {
+    background: #26323f;
+  }
+  .vl-current .vl-cue-text { color: #f1f6ff; }
+  .vl-current .vl-cue-time { color: #9ebce7; }
+
+  .vl-cue-text {
+    color: #d0d3d6;
+  }
+
+  .vl-lesson {
+    background: #292a2d;
+    border-color: #3c4043;
+  }
+
+  .vl-lesson-text {
+    color: #bdc1c6;
+  }
+
+  .vl-word-meaning {
+    color: #9aa0a6;
+  }
+  .vl-check-label, .vl-icon-btn { color: #b8c1cf; }
+  .vl-word-term { color: #e4b675; }
+  .vl-lesson-sec-title { color: #89b8ff; }
+}
