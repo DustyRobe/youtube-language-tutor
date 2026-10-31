@@ -1,5 +1,7 @@
 # 视频语言精讲助手
 
+[简体中文](README.md) | [English](README.en.md)
+
 Chrome Manifest V3 扩展，围绕 YouTube 英文视频提供字幕同步、逐句暂停和 AI 分级讲解，也支持 Bilibili 英文 CC 字幕及手动导入 SRT/VTT。
 
 ## 功能
