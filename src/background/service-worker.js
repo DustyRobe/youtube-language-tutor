@@ -1,6 +1,7 @@
 // Service Worker：消息路由 + 字幕拉取 + 课程数据管理
+import '../utils/locales.js';
 import { dbGetLesson, dbSaveLesson, dbListLessons, dbDeleteLesson } from './idb.js';
-import { generateLessonsForWindow, getSettings, saveSettings } from './llm.js';
+import { generateLessonsForWindow, getSettings, saveSettings, testModelConnection } from './llm.js';
 
 function swlog(...args) {
   try { console.log('[VL-SW]', ...args); } catch {}
@@ -9,8 +10,8 @@ function swlog(...args) {
 // ---- 视频键（缓存 key）----
 // YouTube: yt:<videoId>；通用站点: gen:<origin+pathname 的哈希>
 function normalizeKey(info) {
-  if (info.site === 'youtube') return `yt:${info.videoId}`;
-  if (info.site === 'bilibili') return `bili:${info.videoId}`;
+  if (info.site === 'youtube') return `yt:${info.videoId}:${info.sourceLanguage || 'en'}`;
+  if (info.site === 'bilibili') return `bili:${info.videoId}:${info.sourceLanguage || 'en'}`;
   const str = `${info.origin}|${info.pathname}`;
   let h = 0;
   for (let i = 0; i < str.length; i++) {
@@ -133,7 +134,7 @@ async function getInnertubeAndroidCaptionUrl(videoId, lang) {
     const manual = tracks.find((t) => t.languageCode === wanted && t.kind !== 'asr');
     const asr = tracks.find((t) => t.languageCode === wanted);
     const enManual = tracks.find((t) => String(t.languageCode || '').startsWith('en') && t.kind !== 'asr');
-    const chosen = manual || asr || enManual || tracks[0];
+    const chosen = manual || asr || tracks.find(t => String(t.languageCode || '').split('-')[0] === wanted.split('-')[0]);
     return chosen?.baseUrl || null;
   } catch (e) {
     swlog('InnerTube 请求异常', e?.message || String(e));
@@ -171,6 +172,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     try {
       switch (msg.type) {
+        case 'TEST_MODEL':
+          return sendResponse({ ok: true, ...await testModelConnection(msg.settings) });
         case 'OPEN_SETTINGS':
           await chrome.runtime.openOptionsPage();
           return sendResponse({ ok: true });
@@ -207,7 +210,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         case 'GENERATE_WINDOW': {
           // 为一段 cue 窗口生成讲解并合并入库
           const videoKey = normalizeKey(msg.info);
-          const generated = await generateLessonsForWindow(msg.cues, msg.context || '', msg.englishLevel || 'B1');
+          const generated = await generateLessonsForWindow(msg.cues, msg.context || '', msg.englishLevel || 'B1', msg.sourceLanguage || msg.info?.sourceLanguage || 'en');
           let cacheError;
           let existing;
           try { existing = await dbGetLesson(videoKey); }

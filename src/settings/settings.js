@@ -10,7 +10,7 @@ const drafts = { ...defaults };
 const dirty = new Set();
 const promptKey = (level = selected, language = promptLanguage) => language === 'zh-CN' ? level : `${level}@${language}`;
 function switchPromptLanguage(language) {
-  promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(language) ? language : 'zh-CN';
+  promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(language) ? language : (globalThis.VL_SYSTEM_LANGUAGE?.() || 'zh-CN');
   defaults = getDefaultLevelPrompts(promptLanguage);
   for (const [level, text] of Object.entries(defaults)) if (!Object.hasOwn(drafts, promptKey(level))) drafts[promptKey(level)] = text;
   if (promptsReady) renderPrompt();
@@ -88,12 +88,12 @@ window.addEventListener('beforeunload', event => {
   if (dirty.size) { event.preventDefault(); event.returnValue = ''; }
 });
 async function initLanguages() {
-  const supported = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'];
+  const supported = ['auto', 'zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'];
   byId('saveLanguages').disabled = true;
   try {
     const { languagePreferences = {} } = await chrome.storage.local.get('languagePreferences');
-    byId('targetLanguage').value = supported.includes(languagePreferences.targetLanguage) ? languagePreferences.targetLanguage : 'zh-CN';
-    byId('uiLanguage').value = supported.includes(languagePreferences.uiLanguage) ? languagePreferences.uiLanguage : 'zh-CN';
+    byId('targetLanguage').value = supported.includes(languagePreferences.targetLanguage) ? languagePreferences.targetLanguage : 'auto';
+    byId('uiLanguage').value = supported.includes(languagePreferences.uiLanguage) ? languagePreferences.uiLanguage : 'auto';
     byId('uiLanguage').addEventListener('change', () => {
       switchPromptLanguage(byId('uiLanguage').value);
       globalThis.VL_I18N?.setLanguage(byId('uiLanguage').value);

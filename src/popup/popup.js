@@ -100,6 +100,29 @@ function showProfile(provider, profile = {}) {
 }
 
 async function init() {
+  $('btnTest')?.addEventListener('click', async () => {
+    const button = $('btnTest');
+    const message = $('testMsg');
+    button.disabled = true;
+    message.textContent = '正在测试连接…';
+    message.className = 'msg';
+    const profile = readProfile();
+    let timeout;
+    try {
+      const result = await Promise.race([
+        send({ type: 'TEST_MODEL', settings: profile }),
+        new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('请求超时，请检查网络、接口地址或稍后重试')), 95000); }),
+      ]);
+      if (JSON.stringify(readProfile()) !== JSON.stringify(profile)) { message.textContent = ''; return; }
+      if (!result?.ok) throw new Error(result?.error || '模型未返回有效数据');
+      message.textContent = '连接成功，模型已正常返回数据。';
+      message.className = 'msg ok';
+    } catch (error) {
+      if (JSON.stringify(readProfile()) !== JSON.stringify(profile)) { message.textContent = ''; return; }
+      message.textContent = profile.apiKey ? String(error.message || error).split(profile.apiKey).join('[已隐藏]') : String(error.message || error);
+      message.className = 'msg err';
+    } finally { clearTimeout(timeout); button.disabled = false; }
+  });
   $('apiFormat')?.addEventListener('change', () => {
     if ($('workspaceField')) $('workspaceField').hidden = $('apiFormat').value !== 'anthropic';
   });

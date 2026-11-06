@@ -31,9 +31,11 @@
     const url = captionUrl(value);
     const videoId = url?.searchParams.get('v');
     if (!videoId || !text?.trim() || !/^[{<]/.test(text.trim())) return;
-    const key = `${videoId}:${url.searchParams.get('lang') || ''}`;
+    // tlang is the language of the returned text, not lang (the source track).
+    const lang = url.searchParams.get('tlang') || url.searchParams.get('lang') || '';
+    const key = `${videoId}:${lang}`;
     if (captionBodies.get(key)?.text === text) return;
-    captionBodies.set(key, { videoId, lang: url.searchParams.get('lang') || '', text });
+    captionBodies.set(key, { videoId, lang, text });
     if (captionBodies.size > 12) captionBodies.delete(captionBodies.keys().next().value);
     document.dispatchEvent(new CustomEvent('vl-caption-captured'));
   }
@@ -93,6 +95,42 @@
     return null;
   }
 
+  function getAudioLanguage() {
+    const language = value => {
+      if (typeof value !== 'string') return null;
+      const code = value.trim().match(/^([a-z]{2,3}(?:-[a-z0-9]{2,8})*)(?:\.|$)/i)?.[1];
+      return code && !/^(?:und|unknown|auto|mul|zxx)$/i.test(code.split('-')[0]) ? code : null;
+    };
+    const player = document.getElementById('movie_player');
+    let current;
+    try { current = player?.getAudioTrack?.(); } catch {}
+    const code = language(current?.languageCode) || language(current?.language) || language(current?.id);
+    if (code) return code;
+    let response;
+    try { response = player?.getPlayerResponse?.(); } catch {}
+    const data = [response, capturedPlayer, window.ytInitialPlayerResponse].find(p => p?.videoDetails?.videoId === getCurrentVideoId());
+    const renderer = data?.captions?.playerCaptionsTracklistRenderer;
+    const audio = renderer?.audioTracks?.find(t => t.audioTrackId === current?.id) ||
+      (!current ? renderer?.audioTracks?.[renderer.defaultAudioTrackIndex] : null);
+    const original = data?.streamingData?.adaptiveFormats?.find(f => f.audioTrack?.audioIsDefault)?.audioTrack;
+    let moduleTracks = [];
+    try { moduleTracks = player?.getOption?.('captions', 'tracklist') || []; } catch {}
+    const tracks = [...(renderer?.captionTracks || []), ...moduleTracks];
+    const asrLanguages = [...new Set(tracks.filter(t => t.kind === 'asr' || /^a\./.test(t.vssId || ''))
+      .map(t => language(t.languageCode)).filter(Boolean))];
+    const captionLanguages = [...new Set(tracks.filter(t => !t.translationLanguage?.languageCode)
+      .map(t => language(t.languageCode)).filter(Boolean))];
+    // An existing audio track with id "und.4" is still unknown. It must not
+    // suppress the original-language / automatic-caption fallback.
+    return language(audio?.audioTrackId) || language(original?.languageCode) || language(original?.id) ||
+      language(data?.microformat?.playerMicroformatRenderer?.defaultAudioLanguage) ||
+      (asrLanguages.length === 1 ? asrLanguages[0] : null) ||
+      (captionLanguages.length === 1 ? captionLanguages[0] : null);
+  }
+  document.addEventListener('vl-request-audio-language', () => {
+    document.dispatchEvent(new CustomEvent('vl-response-audio-language', { detail: { videoId: getCurrentVideoId(), lang: getAudioLanguage() } }));
+  });
+
   // ---- 拦截 /youtubei/v1/player 应答，捕获 SPA 导航后的 captionTracks ----
   try {
     const origFetch = window.fetch;
@@ -131,10 +169,51 @@
     return originalOpen.call(this, method, url, ...rest);
   };
 
-  document.addEventListener('vl-request-caption-body', () => {
+  document.addEventListener('vl-request-caption-body', (event) => {
     const entries = [...captionBodies.values()].filter((entry) => entry.videoId === getCurrentVideoId());
-    const chosen = entries.find((entry) => /^en(?:-|$)/i.test(entry.lang)) || entries[0];
+    const lang = event.detail?.lang || 'en';
+    const chosen = entries.find(entry => entry.lang.toLowerCase() === lang.toLowerCase()) ||
+      entries.find(entry => entry.lang.split('-')[0].toLowerCase() === lang.split('-')[0].toLowerCase());
     document.dispatchEvent(new CustomEvent('vl-response-caption-body', { detail: chosen || null }));
+  });
+
+  // Activate a real English track so YouTube performs its own authenticated
+  // timedtext request (including any session tokens). Never toggle blindly.
+  document.addEventListener('vl-enable-english-captions', async (event) => {
+    const videoId = getCurrentVideoId();
+    let result = { videoId, ok: false };
+    try {
+      const player = document.getElementById('movie_player');
+      if (!player?.setOption || !player?.loadModule) throw new Error('播放器字幕接口尚未就绪');
+      player.loadModule('captions');
+      for (let attempt = 0; attempt < 8; attempt++) {
+        if (getCurrentVideoId() !== videoId) throw new Error('视频已切换');
+        let moduleTracks = [];
+        try { moduleTracks = player.getOption?.('captions', 'tracklist') || []; } catch {}
+        const tracks = moduleTracks.length ? moduleTracks : extractCaptionData() || [];
+        const lang = event.detail?.lang || getAudioLanguage() || 'en';
+        const english = tracks.filter(track => (track.languageCode || '').split('-')[0].toLowerCase() === lang.split('-')[0].toLowerCase() &&
+          !track.translationLanguage?.languageCode);
+        const chosen = english.find(track => track.kind !== 'asr') || english[0];
+        if (chosen) {
+          // Do not copy a translated active track: its translationLanguage can
+          // silently retain Chinese even when languageCode is English.
+          player.setOption('captions', 'track', {
+            languageCode: chosen.languageCode,
+            ...(chosen.vssId ? { vssId: chosen.vssId } : {}),
+            ...(chosen.kind ? { kind: chosen.kind } : {}),
+            translationLanguage: null,
+          });
+          result = { videoId, ok: true, lang: chosen.languageCode };
+          break;
+        }
+        if (attempt < 7) await new Promise(resolve => setTimeout(resolve, 250));
+      }
+      if (!result.ok) result.error = '此视频未提供与当前音轨同语言的字幕';
+    } catch (error) { result.error = error.message || String(error); }
+    document.dispatchEvent(new CustomEvent('vl-english-captions-enabled', {
+      detail: { ...result, requestId: event.detail?.requestId },
+    }));
   });
 
   // ---- 响应 content script 的请求事件 ----

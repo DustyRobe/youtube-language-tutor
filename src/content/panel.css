@@ -1,4 +1,4 @@
-/* 视频英文精讲助手 —— 右侧面板样式 */
+/* 视频语言精讲助手 —— 右侧面板样式 */
 
 .vl-root {
   box-sizing: border-box;
@@ -56,7 +56,7 @@ html.vl-resizing iframe { pointer-events: none !important; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 14px;
+  padding: 4px 10px;
   border-bottom: 1px solid #eee;
   flex-shrink: 0;
 }
@@ -88,7 +88,7 @@ html.vl-resizing iframe { pointer-events: none !important; }
 
 /* ---- 控制面板 ---- */
 .vl-controls {
-  padding: 7px 12px;
+  padding: 5px 10px;
   border-bottom: 1px solid #eee;
   flex-shrink: 0;
 }
@@ -96,9 +96,9 @@ html.vl-resizing iframe { pointer-events: none !important; }
 .vl-controls-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .vl-controls-row:last-child {
@@ -147,7 +147,11 @@ html.vl-resizing iframe { pointer-events: none !important; }
 }
 .vl-root .vl-play-btn:hover { background: #1765cc; }
 .vl-transport > .vl-btn:not(.vl-play-btn) { padding: 6px 9px; height: 34px; }
-.vl-level { margin-left: auto; min-width: 0; max-width: 140px; }
+.vl-level { margin-left: 0; min-width: 0; max-width: 140px; }
+.vl-transport { flex-wrap: nowrap; }
+.vl-transport .vl-level { flex: 1; width: 0; height: 30px; padding: 3px 5px; font-size: 11px; }
+.vl-checks .vl-level { flex: 1 1 90px; width: 0; height: 28px; padding: 3px 5px; font-size: 11px; }
+.vl-checks .vl-check-label { flex: 0 0 auto; }
 
 .vl-speed {
   border: 1px solid #ddd;
@@ -159,7 +163,7 @@ html.vl-resizing iframe { pointer-events: none !important; }
 
 .vl-checks {
   justify-content: flex-start;
-  column-gap: 12px;
+  column-gap: 7px;
 }
 
 .vl-check-label {
@@ -174,13 +178,13 @@ html.vl-resizing iframe { pointer-events: none !important; }
 
 /* ---- 状态条 ---- */
 .vl-status {
-  padding: 5px 14px;
+  padding: 3px 10px;
   font-size: 11px;
   color: #666;
   background: #fafafa;
   border-bottom: 1px solid #eee;
   flex-shrink: 0;
-  min-height: 26px;
+  min-height: 20px;
 }
 
 .vl-status-error {

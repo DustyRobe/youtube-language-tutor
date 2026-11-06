@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>视频英文精讲助手</title>
+  <title>视频语言精讲助手</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h2>视频英文精讲助手</h2>
+  <h2>视频语言精讲助手</h2>
   <button id="btnOpenSettings" class="secondary">⚙ 打开独立设置页 · 模型与分级 Prompt</button>
 
   <h3>LLM API 配置</h3>
@@ -97,6 +97,9 @@
   <label class="hint" style="display:flex;gap:6px;margin:8px 0;align-items:center;color:#666">
     <input id="jsonMode" type="checkbox" checked />启用 JSON 模式（服务不支持时取消）
   </label>
+  <button id="btnTest">测试连接</button>
+  <p>使用当前填写的配置发送简短测试请求，不会保存配置，可能产生少量 API 费用。</p>
+  <div class="msg" id="testMsg" role="status" aria-live="polite"></div>
   <div class="msg" id="saveMsg"></div>
 
   <hr />
@@ -113,8 +116,8 @@
 
   <h3>说明</h3>
   <div class="hint">
-    1. 打开 YouTube 视频页，右侧自动出现精讲面板并加载英文字幕。<br />
-    2. 保存 API 配置后，按所选英文水平自动精讲，每批 5 句；播放到本批第 3 句时预加载下一批。包含台词释义、生词、短语、语法、文化背景及注意事项，仅展开定位句的详情。生成失败可点击下方重试。<br />
+    1. 打开 YouTube 视频页，自动出现精讲面板并加载与当前音轨同语言的字幕。<br />
+    2. 保存 API 配置后，按所选学习水平自动精讲，每批 5 句；播放到本批第 3 句时预加载下一批。包含台词释义、生词、短语、语法、文化背景及注意事项，仅展开定位句的详情。生成失败可点击下方重试。<br />
     3. 通用网页（含 &lt;video&gt; 标签）也支持，需导入 SRT 字幕。
   </div>
 

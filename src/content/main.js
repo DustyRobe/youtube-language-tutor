@@ -65,7 +65,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 // 从 MAIN world 桥接获取数据
-function requestFromBridge(reqEvent, respEvent, timeoutMs = 800) {
+function requestFromBridge(reqEvent, respEvent, timeoutMs = 800, detail) {
   return new Promise((resolve) => {
     let done = false;
     const handler = (e) => {
@@ -75,7 +75,7 @@ function requestFromBridge(reqEvent, respEvent, timeoutMs = 800) {
       resolve(e.detail);
     };
     document.addEventListener(respEvent, handler);
-    document.dispatchEvent(new CustomEvent(reqEvent));
+    document.dispatchEvent(new CustomEvent(reqEvent, { detail }));
     setTimeout(() => {
       if (done) return;
       done = true;
@@ -123,6 +123,7 @@ function watchVideoElement(onVideo) {
 // 状态
 // ============================================================
 const state = {
+  sourceLanguage: 'en',
   englishLevel: 'B1',
   promptRevisions: {},
   promptLanguage: 'zh-CN',
@@ -136,7 +137,7 @@ const state = {
   cues: [],          // [{start, end, text}]
   lessons: {},       // { [cueIndex]: {words, culture, grammar} }
   currentIndex: -1,
-  autoPause: false,  // 逐句暂停模式
+  autoPause: true,  // 默认开启逐句暂停
   panelOpen: true,
   panelWidth: 460,
   adPlaying: false,  // 广告播放中，暂停联动
@@ -157,7 +158,7 @@ function buildPanel() {
   const resizeHandle = el('div', { class: 'vl-resize-handle', role: 'separator', tabindex: '0', 'aria-label': '调整讲解面板宽度', 'aria-orientation': 'vertical', title: '左右拖动调整宽度；方向键微调；双击恢复默认' });
 
   // ---- 顶部栏 ----
-  const title = el('div', { class: 'vl-title' }, '英语精讲');
+  const title = el('div', { class: 'vl-title' }, '语言精讲');
   const btnSettings = el('button', { class: 'vl-icon-btn', title: 'AI 与讲解提示词设置（新页面）', 'aria-label': '打开 AI 设置', onclick: async () => {
     const result = await send({ type: 'OPEN_SETTINGS' });
     if (!result?.ok) setStatus(`无法打开设置：${result?.error || '请从扩展管理页打开设置'}`, true);
@@ -180,7 +181,7 @@ function buildPanel() {
   }
   speedSel.value = '1';
 
-  const chkAutoPause = el('input', { type: 'checkbox', id: 'vl-auto-pause', onchange: (e) => {
+  const chkAutoPause = el('input', { type: 'checkbox', id: 'vl-auto-pause', checked: 'checked', onchange: (e) => {
     state.autoPause = e.target.checked;
     state.autoPauseIndex = -1;
     state.pausedCue = null;
@@ -205,8 +206,16 @@ function buildPanel() {
   }
   levelSelect.value = state.englishLevel;
   controls.firstElementChild.append(levelSelect);
-  levelSelect.setAttribute('aria-label', '我的英文水平');
-  levelSelect.title = '我的英文水平';
+  levelSelect.setAttribute('aria-label', 'CEFR');
+  levelSelect.title = 'CEFR';
+  const sourceSelect = el('select', { class: 'vl-speed vl-level', 'aria-label': '视频原声语言', title: '视频原声语言', onchange: async (event) => {
+    state.sourceLanguageOverride = event.target.value;
+    await loadCuesForCurrentVideo();
+  } });
+  for (const [value, label] of Object.entries({ auto: '自动识别语言', en: 'English', de: 'Deutsch', fr: 'Français', es: 'Español', pt: 'Português', 'zh-CN': '中文', ja: '日本語', ko: '한국어', ru: 'Русский', ar: 'العربية' })) {
+    sourceSelect.append(el('option', { value: value === 'auto' ? '' : value }, label));
+  }
+  if (['youtube', 'bilibili'].includes(state.site)) controls.lastElementChild.append(sourceSelect);
 
   // ---- 状态条 ----
   const status = el('div', { class: 'vl-status' }, '初始化…');
@@ -335,7 +344,7 @@ async function onEnglishLevelChanged(event) {
     state.englishLevel = previous;
     event.target.value = previous;
     refreshCueList();
-    setStatus(`英文水平保存失败：${error.message || error}`, true);
+    setStatus(`学习水平保存失败：${error.message || error}`, true);
   }
 }
 
@@ -603,6 +612,30 @@ async function loadCuesForCurrentVideo() {
   state.preloadBlocked = false;
   refreshCueList();
 
+  if (state.sourceLanguageOverride) state.sourceLanguage = state.sourceLanguageOverride;
+  if (state.site === 'youtube' && !state.sourceLanguageOverride && typeof requestFromBridge === 'function') {
+    const audio = await requestFromBridge('vl-request-audio-language', 'vl-response-audio-language', 1200);
+    if (loadId !== subtitleLoadId) return;
+    if (!audio?.lang || /^(?:und|unknown|auto|mul|zxx)(?:-|$)/i.test(audio.lang)) {
+      setStatus('无法自动识别语言，请手动选择视频原声语言。', true);
+      return;
+    }
+    state.sourceLanguage = audio.lang;
+    const levelControl = document.getElementById('vl-english-level');
+    if (levelControl) {
+      levelControl.title = `CEFR (${audio.lang})`;
+      levelControl.setAttribute('aria-label', levelControl.title);
+    }
+  }
+  let biliFragments;
+  if (state.site === 'bilibili') {
+    try { biliFragments = await loadBilibiliCues(); }
+    catch (error) {
+      if (loadId === subtitleLoadId) setStatus(`字幕加载失败：${error.message || error}`, true);
+      return;
+    }
+    if (loadId !== subtitleLoadId) return;
+  }
   const info = getVideoInfo();
   vlog('[2.1] 请求本地缓存', JSON.stringify(info));
 
@@ -613,7 +646,12 @@ async function loadCuesForCurrentVideo() {
   vlog('[2.2] 缓存响应', cached?.ok ? `命中: ${cached.lesson ? `${cached.lesson.cues?.length || 0}句` : '无数据'}` : `失败: ${cached?.error}`);
   const needsRawRefresh = cached?.lesson?.meta?.sentenceVersion !== VL_SENTENCE_VERSION && !cached?.lesson?.rawCues?.length &&
     ['youtube', 'bilibili'].includes(state.site) && cached?.lesson?.meta?.source !== 'imported-srt';
-  if (cached?.ok && cached.lesson?.cues?.length && !needsRawRefresh) {
+  const needsLanguageRefresh = state.site === 'youtube' && cached?.lesson?.meta?.source !== 'imported-srt' &&
+    (cached?.lesson?.meta?.captionLanguageVersion !== 2 || cached?.lesson?.meta?.sourceLanguage !== state.sourceLanguage);
+  if (cached?.ok && cached.lesson?.cues?.length && !needsRawRefresh && !needsLanguageRefresh) {
+    if (state.site === 'youtube' && typeof requestFromBridge === 'function') {
+      void requestFromBridge('vl-enable-english-captions', 'vl-english-captions-enabled', 3000, { lang: state.sourceLanguage });
+    }
     const migrated = cached.lesson.meta?.sentenceVersion !== VL_SENTENCE_VERSION;
     state.rawCues = cached.lesson.rawCues || cached.lesson.cues;
     state.cues = migrated ? combineSubtitleSentences(state.rawCues) : cached.lesson.cues;
@@ -634,7 +672,7 @@ async function loadCuesForCurrentVideo() {
   if (state.site === 'youtube' || state.site === 'bilibili') {
     try {
       vlog('[3] 开始站点字幕拉取', state.site);
-      const fragments = state.site === 'bilibili' ? await loadBilibiliCues() : await loadYouTubeCues();
+      const fragments = state.site === 'bilibili' ? biliFragments : await loadYouTubeCues();
       const cues = combineSubtitleSentences(fragments);
       if (loadId !== subtitleLoadId) return;
       vlog('[3.4] YouTube 字幕结果', cues ? `${cues.length} 句, 首句: "${cues[0]?.text?.slice(0, 40) || ''}"` : 'null');
@@ -649,7 +687,7 @@ async function loadCuesForCurrentVideo() {
         void send({
           type: 'SAVE_LESSON',
           info,
-          lesson: { cues, rawCues: fragments, lessons: state.lessons, meta: { title: document.title, createdAt: Date.now(), source: `${state.site}-caption`, sentenceVersion: VL_SENTENCE_VERSION } },
+          lesson: { cues, rawCues: fragments, lessons: state.lessons, meta: { title: document.title, createdAt: Date.now(), source: `${state.site}-caption`, sentenceVersion: VL_SENTENCE_VERSION, captionLanguageVersion: state.site === 'youtube' ? 2 : undefined, sourceLanguage: state.sourceLanguage || 'en' } },
         }).then((result) => {
           if (!result?.ok) vlog('[缓存保存失败]', result?.error);
           if (loadId === subtitleLoadId) scheduleLessonPreload();
@@ -667,12 +705,13 @@ async function loadCuesForCurrentVideo() {
   }
 
   vlog('[4] 未能获取字幕，流程结束');
-  setStatus('未获取到字幕。请在 YouTube 播放器开启英文字幕以采集；也可在弹窗导入 SRT/VTT。');
+  setStatus('未获取到字幕。请确认视频提供同语言字幕，或在弹窗导入 SRT/VTT。');
   refreshCueList();
 }
 
 function getVideoInfo() {
   return {
+    sourceLanguage: state.sourceLanguage || 'en',
     site: state.site,
     videoId: state.videoId,
     origin: location.origin,
@@ -693,18 +732,39 @@ function loadBilibiliCues() {
     function handler(event) {
       if (event.detail?.requestId !== requestId) return;
       if (event.detail.videoId !== state.videoId) return finish(null, '视频已切换');
+      if (!event.detail.error && event.detail.lang) state.sourceLanguage = event.detail.lang;
       finish(event.detail.cues, event.detail.error);
     }
     document.addEventListener('vl-response-bili-cues', handler);
-    document.dispatchEvent(new CustomEvent('vl-request-bili-cues', { detail: { requestId } }));
+    document.dispatchEvent(new CustomEvent('vl-request-bili-cues', { detail: { requestId, lang: state.sourceLanguageOverride || null } }));
   });
 }
 
+function isEnglishCaptionText(cues) {
+  const text = (cues || []).slice(0, 100).map(cue => cue.text || '').join('');
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  const cjk = (text.match(/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+  return latin > 0 && cjk / (latin + cjk) < 0.15;
+}
+
 async function loadYouTubeCues() {
-  const observed = await requestFromBridge('vl-request-caption-body', 'vl-response-caption-body');
-  if (observed?.videoId === state.videoId) {
+  const cues = await loadYouTubeCaptionCues();
+  if (/^en(?:-|$)/i.test(state.sourceLanguage || 'en') && cues?.length && !isEnglishCaptionText(cues)) {
+    throw new Error('字幕内容不是英文，已停止加载。请在 YouTube 选择英文原始字幕后刷新页面，或导入英文 SRT/VTT');
+  }
+  return cues;
+}
+
+async function loadYouTubeCaptionCues() {
+  const language = state.sourceLanguage || 'en';
+  const matchesLanguage = lang => String(lang || '').split('-')[0].toLowerCase() === language.split('-')[0].toLowerCase();
+  const validText = cues => !/^en(?:-|$)/i.test(language) || isEnglishCaptionText(cues);
+  const enabled = await requestFromBridge('vl-enable-english-captions', 'vl-english-captions-enabled', 3000, { lang: language });
+  vlog('[3.0] 自动开启英文字幕', enabled?.ok ? enabled.lang : enabled?.error || '播放器未响应，继续尝试直接采集');
+  const observed = await requestFromBridge('vl-request-caption-body', 'vl-response-caption-body', 800, { lang: language });
+  if (observed?.videoId === state.videoId && matchesLanguage(observed.lang)) {
     const cues = parseCaptionTextInContent(observed.text);
-    if (cues?.length) return cues;
+    if (cues?.length && validText(cues)) return cues;
   }
   // 通过桥接拿到 captionTracks
   vlog('[3.1] 请求桥接获取字幕轨道…');
@@ -734,9 +794,15 @@ async function loadYouTubeCues() {
   }
 
   // 优先英文字幕（排除自动生成的 ASR 优先级放低：先人工 en 再 ASR en）
-  const enManual = tracks.find((t) => t.lang?.startsWith('en') && t.kind !== 'asr');
-  const enAny = tracks.find((t) => t.lang?.startsWith('en'));
-  const chosen = enManual || enAny || tracks[0];
+  const englishTracks = tracks.filter(t => {
+    try {
+      const url = new URL(t.baseUrl);
+      return matchesLanguage(t.lang) && matchesLanguage(url.searchParams.get('tlang') || url.searchParams.get('lang') || t.lang);
+    } catch { return false; }
+  });
+  const enManual = englishTracks.find(t => t.kind !== 'asr');
+  const chosen = enManual || englishTracks[0];
+  if (!chosen) throw new Error(`未找到${language === 'en' ? '英文' : language}字幕轨道，已跳过其他语言字幕。请导入同语言 SRT/VTT`);
   vlog('[3.2] 选定字幕轨道', `lang=${chosen.lang} kind=${chosen.kind || 'manual'} name="${chosen.name}" baseUrl=${(chosen.baseUrl || '(空)').slice(0, 80)}…`);
   if (!chosen?.baseUrl) {
     vlog('[3.2a] baseUrl 为空，放弃');
@@ -779,8 +845,18 @@ async function loadYouTubeCues() {
     }
   }
   if (!cues?.length) {
+    // Give the player's native, authenticated request time to arrive after
+    // enabling captions. Direct timedtext fetches can be empty without tokens.
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const body = await requestFromBridge('vl-request-caption-body', 'vl-response-caption-body', 800, { lang: language });
+      if (body?.videoId === state.videoId && matchesLanguage(body.lang)) {
+        const nativeCues = parseCaptionTextInContent(body.text);
+        if (nativeCues?.length && validText(nativeCues)) return nativeCues;
+      }
+      if (attempt < 7) await sleep(400);
+    }
     vlog('[3.3i] 最终未获得字幕内容', lastErr ? `最后错误: ${lastErr.message}` : '');
-    throw new Error(`${lastErr?.message || '字幕内容为空'}。请在 YouTube 播放器开启英文字幕后重试，插件会自动采集播放器返回的字幕`);
+    throw new Error(`${lastErr?.message || '字幕内容为空'}。已尝试开启 ${language} 字幕，可稍后刷新或导入同语言 SRT/VTT`);
   }
   return cues;
 }
@@ -915,6 +991,7 @@ async function generateLessonBatch(from, automatic = false) {
       rawCues: state.rawCues,
       from,
       englishLevel: generationLevel,
+      sourceLanguage: state.sourceLanguage || 'en',
       sentenceVersion: VL_SENTENCE_VERSION,
       context: `${document.title}\n相邻台词（仅作语境，不需要生成讲解）：\n${state.cues.slice(Math.max(0, from - 3), from).map(cue => cue.text).join('\n')}`,
       title: document.title,
@@ -951,7 +1028,7 @@ async function generateLessonBatch(from, automatic = false) {
 // ============================================================
 function buildFab() {
   if (document.getElementById('vl-fab')) return;
-  const fab = el('div', { id: 'vl-fab', title: '打开英语精讲面板', onclick: showPanel }, 'EN');
+  const fab = el('div', { id: 'vl-fab', title: '打开语言精讲面板', onclick: showPanel }, '文');
   document.documentElement.append(fab);
 }
 
@@ -993,8 +1070,8 @@ async function bootPanel() {
   state.components.btnGenerate.disabled = true;
   try {
     const stored = await chrome.storage.local.get(['englishLevel', 'panelWidth', 'levelPrompts', 'languagePreferences']);
-    state.targetLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.targetLanguage) ? stored.languagePreferences.targetLanguage : 'zh-CN';
-    state.promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.uiLanguage) ? stored.languagePreferences.uiLanguage : 'zh-CN';
+    state.targetLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.targetLanguage) ? stored.languagePreferences.targetLanguage : (globalThis.VL_SYSTEM_LANGUAGE?.() || 'zh-CN');
+    state.promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.uiLanguage) ? stored.languagePreferences.uiLanguage : (globalThis.VL_SYSTEM_LANGUAGE?.() || 'zh-CN');
     state.levelPromptRecords = stored.levelPrompts || {};
     refreshPromptRevisions();
     if (['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(stored.englishLevel)) state.englishLevel = stored.englishLevel;
@@ -1063,6 +1140,18 @@ async function bindVideoIdAndLoad() {
     await loadCuesForCurrentVideo();
 
     // SPA 导航：换视频时重新加载
+    let checkingAudio = false;
+    setInterval(async () => {
+      if (checkingAudio || state.sourceLanguageOverride) return;
+      checkingAudio = true;
+      try {
+        const audio = await requestFromBridge('vl-request-audio-language', 'vl-response-audio-language', 1000);
+        if (audio?.videoId === state.videoId && audio.lang && audio.lang !== state.sourceLanguage) {
+          await loadCuesForCurrentVideo();
+        }
+      } catch (error) { vlog('[音轨语言检测]', error?.message || String(error)); }
+      finally { checkingAudio = false; }
+    }, 2500);
   } else {
     await loadCuesForCurrentVideo();
   }
@@ -1093,10 +1182,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (changes.languagePreferences) {
     const oldRevision = state.promptRevisions[state.englishLevel] || '';
     const locale = changes.languagePreferences.newValue?.uiLanguage;
-    state.promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(locale) ? locale : 'zh-CN';
+    state.promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(locale) ? locale : (globalThis.VL_SYSTEM_LANGUAGE?.() || 'zh-CN');
     refreshPromptRevisions();
     const language = changes.languagePreferences.newValue?.targetLanguage;
-    const target = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(language) ? language : 'zh-CN';
+    const target = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(language) ? language : (globalThis.VL_SYSTEM_LANGUAGE?.() || 'zh-CN');
     if (state.targetLanguage !== target || oldRevision !== (state.promptRevisions[state.englishLevel] || '')) {
       state.targetLanguage = target;
       state.preloadBlocked = false;

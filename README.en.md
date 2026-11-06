@@ -2,13 +2,15 @@
 
 [简体中文](README.md) | [English](README.en.md)
 
-A Chrome Manifest V3 extension for learning English with YouTube videos. It provides synchronized subtitles, sentence-by-sentence pausing, and AI explanations tailored to your English level. It also supports English CC subtitles on Bilibili and manual SRT/VTT imports.
+A Chrome Manifest V3 extension for multilingual video learning, translation, and detailed explanations. It provides synchronized subtitles, sentence-by-sentence pausing, and AI explanations tailored to your proficiency level. It also supports multilingual CC subtitles on Bilibili and manual SRT/VTT imports.
 
 ## Features
 
+- On YouTube, follow the current audio track language and enable matching subtitles automatically, or choose a source language from the panel. Audio track changes reload captions; captions and lessons are cached separately per source language. Detection uses player metadata, with a unique automatic-caption language as a fallback; it does not transcribe audio. Import SRT/VTT if matching captions are unavailable.
+- Generate lessons for the source language (for example, German dialogue explained in Chinese). CEFR levels apply to the language being studied; the explanation language remains independent. Bilibili supports available CC languages; auto mode prefers English and otherwise uses another available track. Manual language selection is also supported.
 - Automatically capture subtitles and combine fragmented captions into learning segments while limiting overly long segments.
 - Use a floating panel with adjustable width, subtitle navigation, playback speed controls, and sentence-by-sentence pausing. Only the current segment's explanation is expanded.
-- Generate dialogue explanations, vocabulary, phrases, grammar, cultural context, and usage notes for English levels A1–C2.
+- Generate dialogue explanations, vocabulary, phrases, grammar, cultural context, and usage notes for proficiency levels A1–C2.
 - Automatically preload explanations in batches of five segments and reuse local caches.
 - Edit teaching prompts for each proficiency level and interface language on a dedicated settings page.
 - Set explanation and interface languages independently. Supported languages: Chinese, English, French, Japanese, Korean, Russian, Spanish, German, Portuguese, and Arabic.
@@ -20,7 +22,7 @@ A Chrome Manifest V3 extension for learning English with YouTube videos. It prov
 1. Download or clone this repository.
 2. Open `chrome://extensions` in Chrome and enable **Developer mode**.
 3. Click **Load unpacked** and select the repository folder containing `manifest.json`.
-4. Open a YouTube video and enable English captions if needed.
+4. Open a YouTube video and let the extension enable matching captions, or choose a source language.
 5. Click the ⚙ icon at the top of the panel to configure your provider, API key, an available model ID, and language preferences.
 
 The prefilled OpenAI / Codex model name is editable. Use a model ID supported by your provider and account. Endpoint URLs, model access, regional availability, and JSON mode support vary by provider; adjust settings accordingly.
@@ -31,7 +33,7 @@ API settings are stored locally in the browser's extension storage. Subtitles an
 
 The source code does not require real API keys. Do not commit keys or exported personal settings to the repository.
 
-Automatic subtitle capture on Bilibili requires an English subtitle track in the player and may require signing in. Subtitles burned into the video image cannot be retrieved through subtitle file endpoints. Segmentation uses existing subtitle timestamps and text rules, so captions with missing punctuation or inaccurate timestamps may not split perfectly.
+Automatic subtitle capture on Bilibili requires a CC subtitle track in the player and may require signing in. Subtitles burned into the video image cannot be retrieved through subtitle file endpoints. Segmentation uses existing subtitle timestamps and text rules, so captions with missing punctuation or inaccurate timestamps may not split perfectly.
 
 ## Verification
 

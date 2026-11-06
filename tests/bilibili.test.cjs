@@ -22,10 +22,10 @@ function setup() {
   };
   const context = vm.createContext({ window, document, location, XMLHttpRequest: XHR, URL, URLSearchParams, CustomEvent, AbortSignal });
   vm.runInContext(fs.readFileSync(path.join(root, 'src/content/bilibili-bridge.js'), 'utf8'), context);
-  function request(name) {
+  function request(name, detail = {}) {
     return new Promise(resolve => {
       document.addEventListener(name.replace('request', 'response'), e => resolve(e.detail), { once: true });
-      document.dispatchEvent(new CustomEvent(name, { detail: { requestId: 'test' } }));
+      document.dispatchEvent(new CustomEvent(name, { detail: { requestId: 'test', ...detail } }));
     });
   }
   function metadata(cid, subtitles, extra = {}) {
@@ -55,7 +55,7 @@ test('Bilibili native XHR tracks choose English and normalize timestamp cues', a
   assert.equal(result.cues[0].end, 2.5);
   assert.equal(result.lang, 'en-US');
   assert.match(s.requests[0].url, /english.json$/);
-  assert.equal(s.requests[0].options.credentials, 'include');
+  assert.equal(s.requests[0].options.credentials, 'omit');
 });
 
 test('Bilibili native fetch tracks and part changes use separate cid data', async () => {
@@ -71,11 +71,23 @@ test('Bilibili native fetch tracks and part changes use separate cid data', asyn
   assert.ok((await s.request('vl-request-bili-cues')).cues);
 });
 
-test('Bilibili login and missing English produce actionable messages', async () => {
+test('Bilibili accepts Chinese-only CC and still reports login requirements', async () => {
   const s = setup();
   s.xhr(s.metadata(100, [], { need_login_subtitle: true }));
   assert.match((await s.request('vl-request-bili-cues')).error, /登录/);
   s.xhr(s.metadata(100, [englishTracks[0]]));
-  assert.match((await s.request('vl-request-bili-cues')).error, /没有可用的英文/);
-  assert.equal(s.requests.length, 0);
+  const result = await s.request('vl-request-bili-cues');
+  assert.equal(result.lang, 'zh-CN');
+  assert.match(s.requests[0].url, /chinese.json$/);
+});
+
+test('Bilibili manual language selection is strict and AI language codes are normalized', async () => {
+  const s = setup();
+  s.xhr(s.metadata(100, englishTracks));
+  assert.equal((await s.request('vl-request-bili-cues', { lang: 'zh-CN' })).lang, 'zh-CN');
+  const before = s.requests.length;
+  assert.match((await s.request('vl-request-bili-cues', { lang: 'de' })).error, /没有所选语言/);
+  assert.equal(s.requests.length, before);
+  s.xhr(s.metadata(100, [{ lan: 'ai-zh', subtitle_url: '//aisubtitle.hdslb.com/auto-zh.json' }]));
+  assert.equal((await s.request('vl-request-bili-cues')).lang, 'zh');
 });

@@ -40,8 +40,8 @@
     return nativeOpen.call(this, method, url, ...rest);
   };
 
-  async function getJson(url) {
-    const resp = await nativeFetch.call(window, url, { credentials: 'include', signal: AbortSignal.timeout(8000) });
+  async function getJson(url, credentials = 'include') {
+    const resp = await nativeFetch.call(window, url, { credentials, signal: AbortSignal.timeout(8000) });
     if (!resp.ok) throw new Error(`Bilibili 请求失败 HTTP ${resp.status}`);
     return resp.json();
   }
@@ -68,18 +68,30 @@
       if (subtitle.bvid && subtitle.bvid !== current.bvid) throw new Error('播放器字幕与当前视频不匹配，请刷新后重试');
       if (subtitle.need_login_subtitle) throw new Error('Bilibili 提示字幕需要登录，请登录后刷新');
       const tracks = subtitle.subtitles || [];
-      const english = track => /^(?:ai-)?en(?:-|$)/i.test(track.lan || '');
-      const chosen = tracks.find(track => english(track) && !String(track.lan).startsWith('ai-')) || tracks.find(english);
-      if (!chosen) throw new Error(tracks.length ? '当前视频没有可用的英文字幕轨道，可导入英文 SRT/VTT；画面内嵌字幕需转写或 OCR' : '播放器未提供字幕轨道，可开启字幕后重试或导入英文 SRT/VTT');
+      const language = track => String(track.lan || '').replace(/^ai-/i, '');
+      const wanted = event.detail?.lang;
+      const available = tracks.filter(track => track.subtitle_url && language(track));
+      // Manual selection is strict. Auto preserves the previous English
+      // preference, but accepts other available languages instead of failing.
+      const candidates = wanted ? available.filter(track => language(track).split('-')[0].toLowerCase() === wanted.split('-')[0].toLowerCase()) : available;
+      const chosen = wanted
+        ? candidates.find(track => !/^ai-/i.test(track.lan)) || candidates[0]
+        : candidates.find(track => /^en(?:-|$)/i.test(language(track)) && !/^ai-/i.test(track.lan)) ||
+          candidates.find(track => /^en(?:-|$)/i.test(language(track))) ||
+          candidates.find(track => !/^ai-/i.test(track.lan)) || candidates[0];
+      if (!chosen) throw new Error(tracks.length ? '没有所选语言的字幕，请选择其他字幕语言或导入 SRT/VTT。' : '播放器未提供字幕轨道。画面内嵌字幕需转写或 OCR，也可导入 SRT/VTT。');
       const url = new URL(chosen.subtitle_url, location.href);
       if (url.protocol !== 'https:' || !/(^|\.)(hdslb\.com|bilibili\.com)$/.test(url.hostname)) throw new Error('字幕资源地址无效');
-      const body = await getJson(url.href);
+      // The signed CDN URL authorizes this request. Its CORS response uses
+      // Access-Control-Allow-Origin: *, which forbids credentials: include.
+      // Keep cookies for Bilibili metadata APIs, but omit them for subtitles.
+      const body = await getJson(url.href, 'omit');
       const cues = (body.body || []).map(item => ({ start: Number(item.from), end: Number(item.to), text: String(item.content || '').trim() }))
         .filter(cue => Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.start >= 0 && cue.end > cue.start && cue.text)
         .sort((a, b) => a.start - b.start);
       if (!cues.length) throw new Error('Bilibili 字幕内容为空');
       if (identity()?.videoId !== current.videoId) throw new Error('视频已切换，忽略旧字幕');
-      reply({ cues, lang: chosen.lan });
+      reply({ cues, lang: language(chosen) });
     } catch (error) { reply({ error: error.message || String(error) }); }
   });
 })();

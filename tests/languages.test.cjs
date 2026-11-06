@@ -5,6 +5,58 @@ const path = require('node:path');
 const vm = require('node:vm');
 const read = file => fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8');
 
+test('system locale defaults apply to UI and lessons without overriding saved choices', async () => {
+  let preferences;
+  let systemLocale = 'de-DE';
+  const context = vm.createContext({
+    navigator: { languages: ['fr-CA'], language: 'fr-CA' },
+    chrome: { i18n: { getUILanguage: () => systemLocale }, storage: { local: { get: async () => ({ languagePreferences: preferences }) } } },
+  });
+  vm.runInContext(read('src/utils/locales.js'), context);
+  vm.runInContext(read('src/utils/i18n.js'), context);
+  vm.runInContext(read('src/background/llm.js').replace(/^export .*;$/gm, ''), context);
+  assert.equal(context.VL_SYSTEM_LANGUAGE(), 'de');
+  assert.equal(context.VL_I18N.t('语言精讲'), 'Sprachen lernen');
+  let settings = await context.getSettings();
+  assert.equal(settings.targetLanguage, 'de');
+  assert.equal(settings.promptLanguage, 'de');
+  preferences = { targetLanguage: 'ja', uiLanguage: 'ar' };
+  settings = await context.getSettings();
+  assert.equal(settings.targetLanguage, 'ja');
+  assert.equal(settings.promptLanguage, 'ar');
+  preferences = { targetLanguage: 'auto', uiLanguage: 'auto' };
+  settings = await context.getSettings();
+  assert.equal(settings.targetLanguage, 'de');
+  assert.equal(settings.promptLanguage, 'de');
+  systemLocale = 'ja-JP';
+  settings = await context.getSettings();
+  assert.equal(settings.targetLanguage, 'ja');
+  assert.equal(settings.promptLanguage, 'ja');
+  systemLocale = 'zh-TW';
+  assert.equal(context.VL_SYSTEM_LANGUAGE(), 'zh-CN');
+  systemLocale = 'pt-BR';
+  assert.equal(context.VL_SYSTEM_LANGUAGE(), 'pt');
+  systemLocale = 'it-IT';
+  assert.equal(context.VL_SYSTEM_LANGUAGE(), 'fr');
+});
+
+test('German source lessons teach German and retain the independent target language', async () => {
+  let prompt;
+  const context = vm.createContext({ URL, AbortSignal,
+    chrome: { storage: { local: { get: async () => ({ settings: { apiKey: 'test', model: 'test', apiBaseUrl: 'https://example.com/v1' }, languagePreferences: { targetLanguage: 'zh-CN', uiLanguage: 'en' } }) } } },
+    fetch: async (url, opts) => {
+      prompt = JSON.parse(opts.body).messages[0].content;
+      return { ok: true, json: async () => ({ choices: [{ message: { content: '{"0":{"translation":"你好"}}' } }] }) };
+    },
+  });
+  vm.runInContext(read('src/background/llm.js').replace(/^export .*;$/gm, ''), context);
+  const lessons = await context.generateLessonsForWindow([{ start: 0, text: 'Guten Tag.' }], '', 'B1', 'de');
+  assert.equal(lessons[0].sourceLanguage, 'de');
+  assert.equal(lessons[0].targetLanguage, 'zh-CN');
+  assert.match(prompt, /原视频台词语言为 Deutsch \(German\)/);
+  assert.match(prompt, /绝不转换成英语教学/);
+});
+
 test('UI translations cover controls, settings, level labels and dynamic statuses', () => {
   const context = vm.createContext({});
   vm.runInContext(read('src/utils/i18n.js'), context);
@@ -67,7 +119,8 @@ test('independent language preferences are saved and restored', async () => {
   });
   vm.runInContext(read('src/settings/settings.js').replace(/^import .*;$/gm, '').replace('void initPrompts();', '').replace('void initLanguages();', ''), context);
   await context.initLanguages();
-  assert.equal(node('targetLanguage').value, 'zh-CN');
+  assert.equal(node('targetLanguage').value, 'auto');
+  assert.equal(node('uiLanguage').value, 'auto');
   node('targetLanguage').value = 'fr'; node('uiLanguage').value = 'en';
   await node('saveLanguages').click();
   assert.equal(storage.languagePreferences.targetLanguage, 'fr');

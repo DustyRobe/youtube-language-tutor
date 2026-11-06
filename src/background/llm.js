@@ -1,7 +1,7 @@
 // LLM 调用模块（OpenAI 兼容接口 / DeepSeek 等）
 // API key 与 baseURL 存 chrome.storage.local
 
-export { generateLessonsForWindow, getSettings, saveSettings, getDefaultLevelPrompts };
+export { generateLessonsForWindow, getSettings, saveSettings, getDefaultLevelPrompts, testModelConnection };
 
 const DEFAULT_SETTINGS = {
   provider: 'deepseek',
@@ -44,9 +44,29 @@ async function getSettings() {
   const settings = { ...DEFAULT_SETTINGS, ...(stored.settings || {}) };
   if (!stored.settings?.apiFormat && (/\/responses\/?(?:\?|$)/.test(settings.apiBaseUrl) || settings.provider === 'codex' || settings.provider === 'openai')) settings.apiFormat = 'responses';
   settings.levelPrompts = stored.levelPrompts || {};
-  settings.targetLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.targetLanguage) ? stored.languagePreferences.targetLanguage : 'zh-CN';
-  settings.promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.uiLanguage) ? stored.languagePreferences.uiLanguage : 'zh-CN';
+  settings.targetLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.targetLanguage) ? stored.languagePreferences.targetLanguage : (globalThis.VL_SYSTEM_LANGUAGE?.() || 'zh-CN');
+  settings.promptLanguage = ['zh-CN', 'en', 'fr', 'ja', 'ko', 'ru', 'es', 'de', 'pt', 'ar'].includes(stored.languagePreferences?.uiLanguage) ? stored.languagePreferences.uiLanguage : (globalThis.VL_SYSTEM_LANGUAGE?.() || 'zh-CN');
   return settings;
+}
+
+async function testModelConnection(profile) {
+  const settings = { ...DEFAULT_SETTINGS, ...profile };
+  const started = Date.now();
+  try {
+    const content = await requestModel(settings,
+      'This is a connection test. Reply with exactly this JSON object: {"ok":true}. Do not include markdown or other text.',
+      'Return {"ok":true}.');
+    if (settings.jsonMode !== false) {
+      try { JSON.parse(content); }
+      catch { throw new Error('接口已返回文本，但不是有效 JSON，请检查 JSON 模式设置'); }
+    }
+    return { elapsedMs: Date.now() - started };
+  } catch (error) {
+    const message = error?.name === 'TimeoutError' || error?.name === 'AbortError'
+      ? '请求超时，请检查网络、接口地址或稍后重试'
+      : String(error?.message || error);
+    throw new Error(settings.apiKey ? message.split(settings.apiKey).join('[已隐藏]') : message);
+  }
 }
 
 async function requestModel(settings, systemPrompt, userPrompt) {
@@ -220,7 +240,7 @@ function getDefaultLevelPrompts(language = 'zh-CN') {
   };
 }
 
-async function generateLessonsForWindow(cues, context = '', englishLevel = 'B1') {
+async function generateLessonsForWindow(cues, context = '', englishLevel = 'B1', sourceLanguage = 'en') {
   const settings = await getSettings();
   const numbered = cues.map((c, i) => `[${i}] (${c.start.toFixed(1)}s) ${c.text.replace(/\n/g, ' ')}`).join('\n');
   const levelGuidance = getDefaultLevelPrompts(settings.promptLanguage);
@@ -228,7 +248,7 @@ async function generateLessonsForWindow(cues, context = '', englishLevel = 'B1')
   const promptKey = settings.promptLanguage === 'zh-CN' ? selectedLevel : `${selectedLevel}@${settings.promptLanguage}`;
   const custom = settings.levelPrompts[promptKey];
   const teachingPrompt = typeof custom?.text === 'string' && custom.text.trim() ? custom.text.trim() : levelGuidance[selectedLevel];
-  const systemPrompt = `你是一名专业英语老师，为非母语学习者讲解英语视频台词。
+  let systemPrompt = `你是一名专业英语老师，为非母语学习者讲解英语视频台词。
 学习者英文水平：${selectedLevel}。
 本次教学策略（用户可编辑）：${teachingPrompt}
 核心规则：用户水平越高，应解释的基础词和基础语法越少。先筛选知识点，再决定讲解；不要把初级讲解换个措辞当成高级讲解。
@@ -267,7 +287,12 @@ JSON 格式说明：
   const userPrompt = `${context ? `视频背景：${context}\n\n` : ''}台词如下：\n${numbered}`;
 
   const targetNames = { 'zh-CN': '简体中文 (Simplified Chinese)', en: 'English', fr: 'Français (French)', ja: '日本語 (Japanese)', ko: '한국어 (Korean)', ru: 'Русский (Russian)', es: 'Español (Spanish)', de: 'Deutsch (German)', pt: 'Português (Portuguese)', ar: 'العربية (Arabic)' };
-  const languagePrompt = `\n\n【输出语言规则：优先于前面默认策略及用户 Prompt 中的语言描述】\n原视频台词语言：English。讲解目标语言：${targetNames[settings.targetLanguage]}。\ntranslation、explanation、words 的 meaning/usage/partOfSpeech、phrases 的 meaning/usage、所有 exampleTranslation、culture、grammar.text、notes.text 必须使用该目标语言。不得因上文 JSON 样例或提示词含有“中文”“双语”而改用中文。JSON 字段名、difficultyLevel、引用的英文词汇/短语、英文例句保持原样。\n${settings.targetLanguage === 'en' ? '这是 English-to-English 学习：translation 用简明英语释义或改述，exampleTranslation 用更易懂的英语改述；不要输出中文或其他语言。按学习者水平调整英语解释和例句的复杂度。' : 'translation 翻译成目标语言，英文原句和例句保留英文，并用目标语言解释和翻译。'}\n`;
+  let languagePrompt = `\n\n【输出语言规则：优先于前面默认策略及用户 Prompt 中的语言描述】\n原视频台词语言：English。讲解目标语言：${targetNames[settings.targetLanguage]}。\ntranslation、explanation、words 的 meaning/usage/partOfSpeech、phrases 的 meaning/usage、所有 exampleTranslation、culture、grammar.text、notes.text 必须使用该目标语言。不得因上文 JSON 样例或提示词含有“中文”“双语”而改用中文。JSON 字段名、difficultyLevel、引用的英文词汇/短语、英文例句保持原样。\n${settings.targetLanguage === 'en' ? '这是 English-to-English 学习：translation 用简明英语释义或改述，exampleTranslation 用更易懂的英语改述；不要输出中文或其他语言。按学习者水平调整英语解释和例句的复杂度。' : 'translation 翻译成目标语言，英文原句和例句保留英文，并用目标语言解释和翻译。'}\n`;
+  if (!/^en(?:-|$)/i.test(sourceLanguage)) {
+    const sourceName = targetNames[sourceLanguage] || targetNames[sourceLanguage.split('-')[0]] || sourceLanguage;
+    systemPrompt = systemPrompt.replace(/英语|英文|English/g, sourceName);
+    languagePrompt = `\n最高优先级语言规则：原视频台词语言为 ${sourceName} (${sourceLanguage})，讲解目标语言为 ${targetNames[settings.targetLanguage]}。学习水平 ${selectedLevel} 针对 ${sourceName}。引用词汇、短语和所有 example 必须来自或使用源语言，绝不转换成英语教学。translation、explanation、meaning、usage、partOfSpeech、exampleTranslation、culture、grammar.text、notes.text 使用目标语言；源语言与目标语言相同时用该语言释义或改述。前文教学策略中其他语言的例子只用于说明难度筛选，不能作为本次教学内容。只分析实际给出的台词，不要假装听过音频。\n`;
+  }
   const content = await requestModel(settings, systemPrompt + languagePrompt, userPrompt);
 
   let parsed;
@@ -287,6 +312,7 @@ JSON 格式说明：
     lesson.lessonVersion = LESSON_VERSION;
     lesson.promptRevision = custom?.revision || '';
     lesson.targetLanguage = settings.targetLanguage;
+    lesson.sourceLanguage = sourceLanguage;
   }
   return lessons;
 }
