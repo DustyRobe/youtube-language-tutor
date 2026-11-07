@@ -1,4 +1,4 @@
-# Video Language Tutor
+# DustyRobe Video Language Learning Assistant
 
 [简体中文](README.md) | [English](README.en.md)
 

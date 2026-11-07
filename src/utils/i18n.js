@@ -1,6 +1,9 @@
 // Shared UI translations. User prompts, subtitles and generated lessons stay intact.
 (() => {
   const strings = {
+    '意见反馈与讨论': ['Feedback and discussions', 'Retours et discussions'],
+    '提交问题或建议': ['Report an issue or suggestion', 'Signaler un problème ou suggérer une idée'],
+    '参与讨论': ['Join discussions', 'Participer aux discussions'],
     '没有所选语言的字幕，请选择其他字幕语言或导入 SRT/VTT。': ['No captions in the selected language. Choose another language or import SRT/VTT.', 'Aucun sous-titre dans cette langue. Choisissez une autre langue ou importez un SRT/VTT.'],
     '播放器未提供字幕轨道。画面内嵌字幕需转写或 OCR，也可导入 SRT/VTT。': ['The player provides no caption tracks. Burned-in subtitles require transcription or OCR; you can also import SRT/VTT.', 'Le lecteur ne fournit aucune piste. Les sous-titres incrustés nécessitent une transcription ou un OCR ; vous pouvez importer un SRT/VTT.'],
     '测试连接': ['Test connection', 'Tester la connexion'],
@@ -13,10 +16,9 @@
     '自动识别语言': ['Auto-detect language', 'Détecter la langue'],
     '视频原声语言': ['Video audio language', 'Langue audio de la vidéo'],
     '无法自动识别语言，请手动选择视频原声语言。': ['Could not detect the language. Select the video audio language manually.', 'Impossible de détecter la langue. Sélectionnez la langue audio de la vidéo.'],
-    '语言精讲': ['Language study', 'Étude des langues'],
-    '视频语言精讲助手': ['Video language tutor', 'Tuteur linguistique vidéo'],
-    'AI 与讲解设置 · 视频语言精讲助手': ['AI & lesson settings', 'Paramètres IA et leçons'],
-    '视频语言精讲助手 / 设置': ['Video language tutor / Settings', 'Tuteur vidéo / Paramètres'],
+    'DustyRobe视频语言学习助手': ["DustyRobe Video Language Learning Assistant", "DustyRobe Assistant d’apprentissage des langues par vidéo"],
+    'AI 与讲解设置 · DustyRobe视频语言学习助手': ["AI & lesson settings · DustyRobe Video Language Learning Assistant", "Paramètres IA et leçons · DustyRobe Assistant d’apprentissage des langues par vidéo"],
+    'DustyRobe视频语言学习助手 / 设置': ["DustyRobe Video Language Learning Assistant / Settings", "DustyRobe Assistant d’apprentissage des langues par vidéo / Paramètres"],
     '让讲解适合你的学习方式': ['Make every lesson your own', 'Des leçons adaptées à votre apprentissage'],
     '配置模型服务，再为每个学习水平定制教学重点。保存后会同步到已打开的视频面板。': ['Configure your model and teaching prompts for each proficiency level. Saved changes sync to open video panels.', 'Configurez le modèle et les consignes par niveau. Les modifications sont synchronisées avec les panneaux ouverts.'],
     '语言设置': ['Language preferences', 'Préférences linguistiques'],
@@ -69,7 +71,7 @@
     '台词释义': ['Meaning', 'Sens du dialogue'], '生词': ['Vocabulary', 'Vocabulaire'], '短语 / 固定搭配': ['Phrases / Collocations', 'Expressions / Collocations'], '文化背景': ['Cultural context', 'Contexte culturel'], '语法 / 时态': ['Grammar / Tense', 'Grammaire / Temps'], '注意事项': ['Usage notes', 'Points à retenir'],
     '词性：': ['Part of speech: ', 'Catégorie : '], '用法：': ['Usage: ', 'Usage : '],
     '（此句暂无讲解，可点击下方按钮生成）': ['No lesson yet. It will load automatically.', 'La leçon sera chargée automatiquement.'],
-    '打开语言精讲面板': ['Open language tutor', 'Ouvrir le tuteur linguistique'],
+    '打开DustyRobe视频语言学习助手': ["Open DustyRobe Video Language Learning Assistant", "Ouvrir DustyRobe Assistant d’apprentissage des langues par vidéo"],
     '加载字幕…': ['Loading subtitles…', 'Chargement des sous-titres…'], '检测到广告播放，联动已暂停…': ['Ad playing. Synchronization paused…', 'Publicité en cours. Synchronisation suspendue…'], '联动已恢复': ['Synchronization resumed', 'Synchronisation rétablie'],
     '本批讲解返回不完整，点击下方重试。': ['This batch is incomplete. Retry below.', 'Ce lot est incomplet. Réessayez ci-dessous.'],
     '请点击顶部 ⚙ 在设置页保存 API 配置，保存后将自动加载讲解': ['Open ⚙ and save your API configuration to load lessons automatically', 'Ouvrez ⚙ et enregistrez l’API pour charger les leçons automatiquement'],

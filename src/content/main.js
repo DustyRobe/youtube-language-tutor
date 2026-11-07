@@ -158,14 +158,26 @@ function buildPanel() {
   const resizeHandle = el('div', { class: 'vl-resize-handle', role: 'separator', tabindex: '0', 'aria-label': '调整讲解面板宽度', 'aria-orientation': 'vertical', title: '左右拖动调整宽度；方向键微调；双击恢复默认' });
 
   // ---- 顶部栏 ----
-  const title = el('div', { class: 'vl-title' }, '语言精讲');
+  const title = el('div', { class: 'vl-title', title: 'DustyRobe视频语言学习助手' }, 'DustyRobe视频语言学习助手');
+  const feedbackMenu = el('div', { class: 'vl-feedback-menu', hidden: 'hidden' },
+    el('a', { href: 'https://github.com/DustyRobe/youtube-language-tutor/issues/new', target: '_blank', rel: 'noopener noreferrer' }, '提交问题或建议'),
+    el('a', { href: 'https://github.com/DustyRobe/youtube-language-tutor/discussions', target: '_blank', rel: 'noopener noreferrer' }, '参与讨论')
+  );
+  const btnFeedback = el('button', { class: 'vl-icon-btn', title: '意见反馈与讨论', 'aria-label': '意见反馈与讨论', 'aria-expanded': 'false', onclick: () => {
+    feedbackMenu.hidden = !feedbackMenu.hidden;
+    btnFeedback.setAttribute('aria-expanded', String(!feedbackMenu.hidden));
+  } }, '💬');
+  const closeFeedback = () => { feedbackMenu.hidden = true; btnFeedback.setAttribute('aria-expanded', 'false'); };
+  const feedbackControl = el('div', { class: 'vl-feedback', onkeydown: event => { if (event.key === 'Escape') { closeFeedback(); btnFeedback.focus(); } } }, btnFeedback, feedbackMenu);
+  feedbackMenu.addEventListener('click', closeFeedback);
+  root.addEventListener('click', event => { if (!feedbackControl.contains(event.target)) closeFeedback(); });
   const btnSettings = el('button', { class: 'vl-icon-btn', title: 'AI 与讲解提示词设置（新页面）', 'aria-label': '打开 AI 设置', onclick: async () => {
     const result = await send({ type: 'OPEN_SETTINGS' });
     if (!result?.ok) setStatus(`无法打开设置：${result?.error || '请从扩展管理页打开设置'}`, true);
   } }, '⚙');
   const btnToggleSize = el('button', { class: 'vl-icon-btn', title: '切换面板宽度', onclick: togglePanelSize }, '↔');
   const btnHide = el('button', { class: 'vl-icon-btn', title: '隐藏面板', onclick: hidePanel }, '✕');
-  const topBar = el('div', { class: 'vl-topbar' }, title, el('div', { class: 'vl-topbar-actions' }, btnSettings, btnToggleSize, btnHide));
+  const topBar = el('div', { class: 'vl-topbar' }, title, el('div', { class: 'vl-topbar-actions' }, feedbackControl, btnSettings, btnToggleSize, btnHide));
 
   // ---- 控制面板 ----
   const btnPrev = el('button', { class: 'vl-btn', title: '上一句', onclick: () => jumpRelative(-1) }, '⏮');
@@ -238,6 +250,15 @@ function buildPanel() {
 
 function hidePanel() {
   state.panelOpen = false;
+  clearTimeout(lessonPreloadTimer);
+  lessonPreloadTimer = null;
+  const resumeVideo = !!state.pausedCue && state.video?.paused;
+  state.pausedCue = null;
+  state.autoPauseIndex = -1;
+  state.pauseBoundarySeeking = false;
+  if (resumeVideo) {
+    try { state.video.play()?.catch(() => {}); } catch {}
+  }
   applyYouTubeLayout(false);
   const root = document.getElementById(PANEL_ID);
   if (root) root.classList.remove('vl-open');
@@ -538,6 +559,7 @@ function binarySearchCueIndex(t) {
 }
 
 function onTimeUpdate() {
+  if (state.panelOpen === false) return;
   const v = state.video;
   if (!v || !state.cues.length) return;
   const adPlaying = state.site === 'youtube' && !!document.querySelector('.html5-video-player.ad-showing, .html5-video-player.ad-interrupting');
@@ -933,7 +955,7 @@ function sleep(ms) {
 // ============================================================
 let lessonPreloadTimer = null;
 function preloadBatchStart() {
-  if (!state.cues.length || state.preloadBlocked) return null;
+  if (state.panelOpen === false || !state.cues.length || state.preloadBlocked) return null;
   const located = state.currentIndex >= 0 ? state.currentIndex : binarySearchCueIndex(state.video?.currentTime || 0);
   const current = Math.max(0, located);
   const start = Math.floor(current / 5) * 5;
@@ -949,7 +971,7 @@ function preloadBatchStart() {
 }
 
 function scheduleLessonPreload() {
-  if (lessonPreloadTimer || state.generationBusy || state.preloadBlocked || !state.cues.length) return;
+  if (state.panelOpen === false || lessonPreloadTimer || state.generationBusy || state.preloadBlocked || !state.cues.length) return;
   lessonPreloadTimer = setTimeout(() => {
     lessonPreloadTimer = null;
     const from = preloadBatchStart();
@@ -964,7 +986,7 @@ async function onGenerateClicked() {
 }
 
 async function generateLessonBatch(from, automatic = false) {
-  if (state.generationBusy || !state.cues.length) return;
+  if (state.panelOpen === false || state.generationBusy || !state.cues.length) return;
   const generationVideoId = state.videoId;
   const generationCues = state.cues;
   const generationLevel = state.englishLevel;
@@ -983,6 +1005,7 @@ async function generateLessonBatch(from, automatic = false) {
       if (!settings?.apiKey?.trim()) throw new Error('请点击顶部 ⚙ 在设置页保存 API 配置，保存后将自动加载讲解');
       if (state.cues !== generationCues || state.englishLevel !== generationLevel) return;
     }
+    if (state.panelOpen === false) return;
     const resp = await send({
       type: 'GENERATE_WINDOW',
       info: getVideoInfo(),
@@ -1003,6 +1026,7 @@ async function generateLessonBatch(from, automatic = false) {
       const globalIdx = from + Number(relIdx);
       state.lessons[globalIdx] = lesson;
     }
+    if (state.panelOpen === false) return;
     if (windowCues.some((cue, offset) => !lessonForLevel(from + offset))) {
       state.preloadBlocked = true;
       setStatus('本批讲解返回不完整，点击下方重试。', true);
@@ -1012,6 +1036,7 @@ async function generateLessonBatch(from, automatic = false) {
     refreshCueList();
     updateCueHighlight(state.currentIndex, true);
   } catch (e) {
+    if (state.panelOpen === false) return;
     if (state.videoId !== generationVideoId || state.cues !== generationCues || state.englishLevel !== generationLevel || (state.promptRevisions?.[generationLevel] || '') !== generationPromptRevision || (state.targetLanguage || 'zh-CN') !== generationTargetLanguage) return;
     state.preloadBlocked = true;
     setStatus(`生成失败：${e.message || e}`, true);
@@ -1028,7 +1053,7 @@ async function generateLessonBatch(from, automatic = false) {
 // ============================================================
 function buildFab() {
   if (document.getElementById('vl-fab')) return;
-  const fab = el('div', { id: 'vl-fab', title: '打开语言精讲面板', onclick: showPanel }, '文');
+  const fab = el('div', { id: 'vl-fab', title: '打开DustyRobe视频语言学习助手', onclick: showPanel }, '文');
   document.documentElement.append(fab);
 }
 
@@ -1038,6 +1063,15 @@ function showPanel() {
   state.panelOpen = true;
   root.classList.add('vl-open');
   applyYouTubeLayout(true);
+  state.pausedCue = null;
+  const time = state.video?.currentTime || 0;
+  const next = state.cues.findIndex(cue => cue.end > time);
+  state.autoPauseIndex = next < 0 ? state.cues.length : next;
+  state.currentIndex = binarySearchCueIndex(time);
+  state.preloadBlocked = false;
+  onTimeUpdate();
+  updateCueHighlight(state.currentIndex, true);
+  scheduleLessonPreload();
 }
 
 // ============================================================

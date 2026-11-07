@@ -16,7 +16,7 @@ test('system locale defaults apply to UI and lessons without overriding saved ch
   vm.runInContext(read('src/utils/i18n.js'), context);
   vm.runInContext(read('src/background/llm.js').replace(/^export .*;$/gm, ''), context);
   assert.equal(context.VL_SYSTEM_LANGUAGE(), 'de');
-  assert.equal(context.VL_I18N.t('语言精讲'), 'Sprachen lernen');
+  assert.equal(context.VL_I18N.t('DustyRobe视频语言学习助手'), 'DustyRobe Assistent zum Sprachenlernen mit Videos');
   let settings = await context.getSettings();
   assert.equal(settings.targetLanguage, 'de');
   assert.equal(settings.promptLanguage, 'de');

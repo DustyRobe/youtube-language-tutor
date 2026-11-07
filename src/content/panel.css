@@ -1,4 +1,4 @@
-/* 视频语言精讲助手 —— 右侧面板样式 */
+/* DustyRobe视频语言学习助手 —— 右侧面板样式 */
 
 .vl-root {
   box-sizing: border-box;
@@ -62,14 +62,39 @@ html.vl-resizing iframe { pointer-events: none !important; }
 }
 
 .vl-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-inline-end: 8px;
   font-size: 15px;
   font-weight: 600;
 }
 
 .vl-topbar-actions {
+  flex-shrink: 0;
   display: flex;
   gap: 6px;
 }
+
+.vl-feedback { position: relative; }
+.vl-feedback-menu {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  width: max-content;
+  max-width: 260px;
+  padding: 4px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 16px #0002;
+  z-index: 3;
+}
+.vl-feedback-menu[hidden] { display: none; }
+.vl-feedback-menu a { display: block; padding: 8px 12px; color: #1a73e8; font-size: 12px; text-decoration: none; border-radius: 4px; }
+.vl-feedback-menu a:hover, .vl-feedback-menu a:focus-visible { background: #e8f0fe; }
 
 .vl-icon-btn {
   border: none;

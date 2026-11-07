@@ -1,4 +1,4 @@
-# 视频语言精讲助手
+# DustyRobe视频语言学习助手
 
 [简体中文](README.md) | [English](README.en.md)
 
